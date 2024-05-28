@@ -45,9 +45,9 @@ The Rejuve platform contracts are designed to implement the following functional
 
 ### Functional, Technical Requirements
 
-1. The [Technical requirements](https://singularitynet.atlassian.net/wiki/spaces/RL/pages/133267477/Blockchain+Technical+Requirements) for blockchain are detailed and outlined.
-2. Refer to the [architecture](https://singularitynet.atlassian.net/wiki/spaces/RL/pages/120422447/Blockchain+Architecture) for additional context.
-3. [Smart contract flows](https://singularitynet.atlassian.net/wiki/spaces/RL/pages/147488853/Smart+Contract+Flows+-+V3) are provided to illustrate the contract processes.
+1. The [Technical requirements](https://github.com/BushraHussain/rejuve-platform-contracts/tree/main/docs/1_Technical-requirements) for blockchain are detailed and outlined.
+2. Refer to the [architecture](https://github.com/BushraHussain/rejuve-platform-contracts/tree/main/docs/2_Blockchain-architecture) for additional context.
+3. [Smart contract flows](https://github.com/BushraHussain/rejuve-platform-contracts/tree/main/docs/3_Smart-contract-flows) are provided to illustrate the contract processes.
 
 ## Project Structure
 ```bash 
