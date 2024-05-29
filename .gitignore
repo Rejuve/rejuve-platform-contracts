@@ -2,4 +2,9 @@ node_modules/
 coverage/
 coverage.json
 .env
+cache/
+bin/
+artifacts/
+coverage/
+.vscode
 
