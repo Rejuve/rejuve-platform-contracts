@@ -149,7 +149,8 @@ describe("Profit Distribution Contract", function () {
         expect (await profit.getTotalWithdrawal(productUID)).to.equal(totalWithdrawal);
 
         amountLeft = await rejuveToken.balanceOf(profit.address);
-        console.log("Product balance now ", await rejuveToken.balanceOf(profit.address));
+
+        expect(Number(await rejuveToken.balanceOf(profit.address))).to.equal(60)
     })
     
     it("Should revert if caller has no product shards", async function () {
@@ -208,8 +209,6 @@ describe("Profit Distribution Contract", function () {
         let callerEarning = await profitModule.calculateEarning(rejuveToken, lab.address, lab, profit, productUID, totalAvailableShards);
         let previousWithdrawal= await profit.getTotalWithdrawal(productUID); 
         await profit.connect(lab).withdraw(productUID);  
-
-        console.log("Lab b :", await rejuveToken.balanceOf(lab.address));
 
         expect (await rejuveToken.balanceOf(lab.address)).to.equal(callerEarning); 
         expect (await profit.getHolderLastPoint(lab.address, productUID)).to.equal(await profit.getProductEarning(productUID));

@@ -134,27 +134,37 @@ describe("Data Management Contract", function () {
     });
 
     it("should permit lab to use data", async function () {
+        // Get the current block timestamp
+        let currentBlock = await ethers.provider.getBlock('latest');
+        let currentTimestamp = currentBlock.timestamp;
+    
+        // Define the expected deadline
+        let expectedDeadline = currentTimestamp + expiration;
         
+        // Get permission
         await dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration);
+    
+        // Check permission status
         expect(await dataMgt.getPermissionStatus(dataHash, 100)).to.equal(1);
+    
+        // Calculate the permission hash
         const requestorID = await identityToken.getOwnerIdentity(owner.address);
         const permissionHash = ethers.utils.solidityKeccak256(
             ['uint256', 'bytes', 'uint256'],
-              [
-                requestorID,
-                dataHash,
-                100
-              ],
-        )
-
-        expect()
-        console.log("Permission hash ", permissionHash);
-        
-        console.log("owner all permissions ", await dataMgt.getPermissionHashes(addr2.address));
-
-        console.log("Deadline for a data hash", await dataMgt.getPermissionDeadline(dataHash, 100));
+            [requestorID, dataHash, 100]
+        );
+    
+        // Retrieve all permissions and verify the permission hash
+        const allPermissions = await dataMgt.getPermissionHashes(addr2.address);
+        expect(allPermissions[0]).to.equal(permissionHash);
+    
+        // Verify the permission deadline
+        let deadline = await dataMgt.getPermissionDeadline(dataHash, 100);
+        let buffer = 5; // Buffer of 5 seconds
+        expect(deadline).to.be.at.least(expectedDeadline);
+        expect(deadline).to.be.at.most(expectedDeadline + buffer);
     });
-
+    
     it("Should revert if signature used twice", async function () {
         await expect(dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration))
         .to.be.revertedWith("REJUVE: Signature used already");

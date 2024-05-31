@@ -1,3 +1,3 @@
 module.exports = {
-    skipFiles: ['RejuveTokenTest.sol']
+    skipFiles: ['/mocks/RejuveTokenTest.sol']
 };

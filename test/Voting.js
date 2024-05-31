@@ -58,7 +58,10 @@ describe("Voting Contract", function () {
     it("Should add proposal", async function () {
         let proposalInfoNew = "This is another proposal";
         let votingResultNew = "Passed";
-        await voting.addProposal(100, proposalInfoNew, votingResultNew);
-        console.log("Proposal info", await voting.getProposal(1));
+        await voting.addProposal(100, proposalInfoNew, votingResultNew);    
+        let proposal = await voting.getProposal(1);
+
+        expect(proposal[2]).to.equal(proposalInfoNew);
+        expect(proposal[3]).to.equal(votingResultNew);
     });
 })

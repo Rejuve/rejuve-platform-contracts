@@ -7,4 +7,6 @@ bin/
 artifacts/
 coverage/
 .vscode
+gas-report.txt
+
 
