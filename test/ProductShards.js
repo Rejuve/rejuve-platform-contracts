@@ -233,10 +233,7 @@ describe("Product shards - 1155", function () {
   });
 
   //----------------- Create Shards -------------------------------//
-
-
   //------ Initial values
-
   //----- Product shards - initial
 
   it("Should revert if target supply is zero", async function () {
@@ -408,40 +405,39 @@ it("Should create 1155 based shards", async function () {
   expect(await productShards.getInitialDistributionStatus(productUID)).to.equal(true);
   
   let values = await productShards.getShardsConfig(productUID);
+  expect(values).to.be.an('array').that.is.not.empty;
 
-  console.log("Shards Config :: ", values);
-  console.log("Balance of Data owner 1: type locked: " , await productShards.balanceOf(dataOwner1.address, 0));
-  console.log("Balance of Data owner 1: type traded: " , await productShards.balanceOf(dataOwner1.address, 1));
-  console.log("Balance of Data owner 2: type locked: " , await productShards.balanceOf(dataOwner2.address, 0));
-  console.log("Balance of Data owner 2: type traded: " , await productShards.balanceOf(dataOwner2.address, 1));
-  console.log("Balance of Rjuve: type locked: " , await productShards.balanceOf(rejuveAdmin.address, 0));
-  console.log("Balance of Rejuve: type traded: " , await productShards.balanceOf(rejuveAdmin.address, 1));
-  console.log("Balance of Lab: type locked: " , await productShards.balanceOf(lab.address, 0));
-  console.log("Balance of Lab: type traded: " , await productShards.balanceOf(lab.address, 1));
-  console.log("D1 :" , dataOwner1.address);
-  console.log("D2 :" , dataOwner2.address);
-  console.log("lab :" , lab.address);
-  console.log("rejuve:" , rejuveAdmin.address);
+  //console.log("Shards Config :: ", values);
 
-  console.log("Initial contributors ", await productShards.getInitialContributors(productUID));
-  console.log("All shards ", await productShards.getInitialContributorShards(productUID));
-  });
+  expect(await productShards.balanceOf(dataOwner1.address, 0)).to.equal(2);
+  expect(await productShards.balanceOf(dataOwner1.address, 1)).to.equal(2);
+  expect(await productShards.balanceOf(dataOwner2.address, 0)).to.equal(4);
+  expect(await productShards.balanceOf(dataOwner2.address, 1)).to.equal(5);
+  expect(await productShards.balanceOf(rejuveAdmin.address, 0)).to.equal(10);
+  expect(await productShards.balanceOf(rejuveAdmin.address, 1)).to.equal(10);
+  expect(await productShards.balanceOf(lab.address, 0)).to.equal(7);
+  expect(await productShards.balanceOf(lab.address, 1)).to.equal(8);
 
+  let initialContributors = await productShards.getInitialContributors(productUID);
+  expect(initialContributors).to.be.an('array').that.is.not.empty;
 
-  it("Should revert if trying to create initial shards again", async function () {
-    await expect(productShards.distributeInitialShards(
-      productUID,
-      100,
-      30,
-      lockPeriod,
-      30,
-      20,
-      lab.address,
-      rejuveAdmin.address,
-      ["/product1Locked", "/product1Traded"]
-    )).to.be.revertedWith("REJUVE: Initial shards distributed already");
-  })
+  let allShards = await productShards.getInitialContributorShards(productUID);
+  expect(allShards).to.be.an('array').that.is.not.empty;  
+});
 
+it("Should revert if trying to create initial shards again", async function () {
+  await expect(productShards.distributeInitialShards(
+    productUID,
+    100,
+    30,
+    lockPeriod,
+    30,
+    20,
+    lab.address,
+    rejuveAdmin.address,
+    ["/product1Locked", "/product1Traded"]
+  )).to.be.revertedWith("REJUVE: Initial shards distributed already");
+})
 
 //-------------------------------- Initial Ended --------------------------------//
 
@@ -496,7 +492,6 @@ it("Should create 1155 based shards", async function () {
    })
 
   it("Should create future shards", async function () {
-    
     await productShards.distributeFutureShards(
       productUID,
       40,
@@ -507,14 +502,17 @@ it("Should create 1155 based shards", async function () {
     expect(await productShards.totalShardSupply(productUID)).to.equal(86);
     expect(await productShards.getFutureDistributionStatus(productUID)).to.equal(true);  
 
-    console.log("Data owner 3 - future - locked", await productShards.balanceOf(dataOwner3.address, 0));
-    console.log("Data owner 3 - future ", await productShards.balanceOf(dataOwner3.address, 1));
+    expect(await productShards.balanceOf(dataOwner3.address, 0)).to.equal(7);
+    expect(await productShards.balanceOf(dataOwner3.address, 1)).to.equal(7);
 
-    console.log("clinic - future - locked ", await productShards.balanceOf(clinic.address, 0));
-    console.log("clinic - future ", await productShards.balanceOf(clinic.address, 1));
+    expect(await productShards.balanceOf(clinic.address, 0)).to.equal(12);
+    expect(await productShards.balanceOf(clinic.address, 1)).to.equal(12);
 
-    console.log("Future contributors ", await productShards.getFutureContributors(productUID));
-    console.log("Future contributors shards ", await productShards.getFutureContributorShards(productUID));
+    let futureContributors = await productShards.getFutureContributors(productUID);
+    expect(futureContributors).to.be.an('array').that.is.not.empty;
+  
+    let futureContributorShards = await productShards.getFutureContributorShards(productUID);
+    expect(futureContributorShards).to.be.an('array').that.is.not.empty;
   })
 
   it("Should create future shards again - shud fail", async function () { 

@@ -44,10 +44,17 @@ describe("Distributor Agreement Contract", function () {
     });
 
     it("Should create business agreement if distributor is paying", async function () {
-        let signature = await _getSign.getDistributorSign(distributor2.address, agreement.address, agreementHash,nonce, distributor2)
+        let signature = await _getSign.getDistributorSign(distributor2.address, agreement.address, agreementHash, nonce, distributor2);
         await agreement.connect(distributor2).createAgreement(distributor2.address, signature, agreementHash, 101, 500, 5, 20, nonce);
-        console.log(`Distributor details: ${await agreement.getDistributorData(distributor2.address)}`);
+    
+        let distributorDetails = await agreement.getDistributorData(distributor2.address);
+        expect(distributorDetails[0]).to.equal(agreementHash);
+        expect(distributorDetails[1]).to.equal(101);
+        expect(distributorDetails[2]).to.equal(500);
+        expect(distributorDetails[3]).to.equal(5);
+        expect(distributorDetails[4]).to.equal(20);
     });
+    
 
     it("Should revert if total units are zero ", async function () {
         let signature = await _getSign.getDistributorSign(distributor1.address, agreement.address, agreementHash,nonce, distributor1) 

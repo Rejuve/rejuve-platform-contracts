@@ -4,7 +4,7 @@ let data = require("./modules/DataSubmission");
 // let deploy = require("./modules/DeployContract");
 let _getSign = require ('./modules/GetSign');
 
-describe("Product NFT New contract", function () {
+describe("Product NFT contract", function () {
     let identityToken;
     let dataMgt;
     let productNFT;
@@ -633,7 +633,7 @@ describe("Product NFT New contract", function () {
             productNFT.address,
             signer
         );
-        console.log("Signature in test case ", signForProduct);
+        
         await expect(productNFT.connect(lab).linkNewData(
             productUID, 
             nonce,
