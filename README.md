@@ -1,4 +1,30 @@
-# Rejuve Platform Contracts
+# Rejuve.ai
+Rejuve.ai revolutionizes data management and monetization by leveraging blockchain technology and NFTs, ensuring secure and transparent transactions while giving users full control and ownership over their data.
+
+# Table of Contents
+1. [Project Purpose](#project-purpose)
+2. [Rejuve Platform Contracts Repository](#rejuve-platform-contracts-repository)
+3. [Specification](#specification)
+    - [Project Overview](#project-overview)
+    - [Functional, Technical Requirements](#functional-technical-requirements)
+4. [Roles](#roles)
+5. [Technologies Used](#technologies-used)
+6. [Project Structure](#project-structure)
+7. [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Compile Contracts](#compile-contracts)
+    - [Run Tests](#run-tests)
+    - [View Coverage](#view-coverage)
+    - [Deployment](#deployment)
+    - [Project Scripts](#project-scripts)
+9. [Contact](#contact)
+
+
+## Project Purpose
+The [Rejuve Data NFT](https://www.rejuve.ai/post/rejuve-data-nft) project aims to revolutionize the way data is managed and monetized through the use of Non-Fungible Tokens (NFTs). By leveraging blockchain technology, Rejuve ensures secure, transparent, and efficient data transactions, empowering users to have greater control and ownership over their data.
+
+## Rejuve Platform Contracts Repository
 This repository contains the smart contracts for the Rejuve platform, facilitating the core functionalities and operations of our decentralized application.
 
 ## Specification
@@ -49,11 +75,69 @@ The Rejuve platform contracts are designed to implement the following functional
 2. Refer to the [architecture](https://github.com/BushraHussain/rejuve-platform-contracts/tree/main/docs/2_Blockchain-architecture) for additional context.
 3. [Smart contract flows](https://github.com/BushraHussain/rejuve-platform-contracts/tree/main/docs/3_Smart-contract-flows) are provided to illustrate the contract processes.
 
+
+## Roles
+
+1. **IdentityToken & DataManagement Contracts**
+
+    - `Ownable`:
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Only owner can pause and unpause the contract.
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+
+2. **Product NFT contract**
+
+    - "AccessControl" from OpenZeppelin is used to manage different roles:
+    - `DEFAULT_ADMIN_ROLE`: Can grant and revoke any role.
+    - `PAUSER_ROLE`: Can pause and unpause the contract.`
+    - `SIGNER_ROLE`: Rejuve admin who signs the dataHashes, credit scores & related. 
+
+3. **ProductShards, FutureShards and TransferShards Contracts**
+
+    - `Ownable`: 
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Can pause and unpause the contract.
+        - Can create & distribute shards to initial & future data contributors
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+
+4. **ProfitDistribution, ShardMarketplace & DistributorAgreement Contracts**
+
+    - `Ownable`: 
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Can pause and unpause the contract.
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+
+5. **Voting Contract**
+
+    - `Ownable`: 
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Can pause and unpause the contract.
+        - Can Add proposal & voting result
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+
+
+## Technologies Used
+
+- **Programming Languages & Development tools**
+
+    - **Solidity:** The primary programming language used for smart contract development.
+    - **Hardhat:** A comprehensive development environment for compiling, testing, and deploying smart contracts.
+    - **Javascript:** Utilized for writing tests and scripts to interact with the smart contracts.
+
+- **Libraries**
+    - **Openzeppelin:** A library for secure smart contract development, providing reusable and tested modules.
+
+
 ## Project Structure
 ```bash 
 
 ├── contracts          # Solidity contracts
-│   ├── interfaces     # Contract interfaces
+│   ├── Interfaces     # Contract interfaces
+│   ├── mocks          # Mock contracts
 ├── scripts            # Deployment scripts
 ├── test               # Unit tests for contracts
 ├── hardhat.config.js  # Hardhat configuration

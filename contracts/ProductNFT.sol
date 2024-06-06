@@ -82,7 +82,7 @@ contract ProductNFT is ERC721URIStorage, AccessControl, Pausable {
      * @dev Caller should be a registered identity (having identity token)
      * @param productUID product unique ID = next product UID
      * @param nonce - A unique number to prevent replay attacks
-     * @param signer - Rejuve admin who signed on dataHashes, credit scores & related. 
+     * @param signer - Rejuve admin who signs the dataHashes, credit scores & related. 
      * @param signature - Signer's signature
      * @param productURI - Product metadata
      * @param dataHashes - list of data hashes used in this product
