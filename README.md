@@ -78,13 +78,33 @@ The Rejuve platform contracts are designed to implement the following functional
 
 ## Roles
 
-1. **IdentityToken & DataManagement Contracts**
+1. **IdentityToken Contract**
 
     - `Ownable`:
         - "Ownable" from OpenZeppelin is used to manage various permission.
         - Only owner can pause and unpause the contract.
         - By default, the owner account will be the one that deploys the contract.
         - The owner can transfer ownership to a new account.
+    
+    - `Rejuve/Sponsor`:
+        - Can create identity tokens on the behalf of user
+
+    - `User`:
+        - A user can burn his identity token
+
+2. **DataManagement Contract**
+
+    - `Ownable`:
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Only owner can pause and unpause the contract.
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+    
+    - `Rejuve/Sponsor`:
+        - Can submit data on the behalf of user
+
+    - `Data Requester`:
+        - Can get permission to access the data
 
 2. **Product NFT contract**
 
@@ -92,6 +112,9 @@ The Rejuve platform contracts are designed to implement the following functional
     - `DEFAULT_ADMIN_ROLE`: Can grant and revoke any role.
     - `PAUSER_ROLE`: Can pause and unpause the contract.`
     - `SIGNER_ROLE`: Rejuve admin who signs the dataHashes, credit scores & related. 
+    - `User (Lab)`: 
+        - A user(Lab) can create a product
+        - A user(Lab) can link new data with existing product
 
 3. **ProductShards, FutureShards and TransferShards Contracts**
 
@@ -101,8 +124,11 @@ The Rejuve platform contracts are designed to implement the following functional
         - Can create & distribute shards to initial & future data contributors
         - By default, the owner account will be the one that deploys the contract.
         - The owner can transfer ownership to a new account.
+    
+    - `Shard Owner`
+        - Can transfer shards (Check TransferShards contract) 
 
-4. **ProfitDistribution, ShardMarketplace & DistributorAgreement Contracts**
+4. **ProfitDistribution Contract**
 
     - `Ownable`: 
         - "Ownable" from OpenZeppelin is used to manage various permission.
@@ -110,12 +136,45 @@ The Rejuve platform contracts are designed to implement the following functional
         - By default, the owner account will be the one that deploys the contract.
         - The owner can transfer ownership to a new account.
 
+    - `User`
+        - Can deposit RJV tokens 
+    
+    - `Shard Holder`
+        - Can withdraw earning as per his shards holding 
+
+4. **ShardMarketplace Contract**
+
+    - `Ownable`: 
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Can pause and unpause the contract.
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+
+    - `Shard Holder`
+        - Can list his shards on the marketplace
+        - Can update and cancel the list
+    
+    - `Buyer`
+        - Can purchase shards 
+        - Can benefit from discount coupons if available
+
+4. **DistributorAgreement Contracts**
+
+    - `Ownable`: 
+        - "Ownable" from OpenZeppelin is used to manage various permission.
+        - Can pause and unpause the contract.
+        - By default, the owner account will be the one that deploys the contract.
+        - The owner can transfer ownership to a new account.
+
+    - `User (Distributor)`: 
+        - A user(Distributer) with a valid signature can create an agreement
+
 5. **Voting Contract**
 
     - `Ownable`: 
         - "Ownable" from OpenZeppelin is used to manage various permission.
         - Can pause and unpause the contract.
-        - Can Add proposal & voting result
+        - Can add proposal & voting result details on-chain
         - By default, the owner account will be the one that deploys the contract.
         - The owner can transfer ownership to a new account.
 
