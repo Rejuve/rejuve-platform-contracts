@@ -1,5 +1,10 @@
 const { expect } = require("chai");
 let _getSign = require ('./modules/GetSign');
+let getSignature = require("./helpers/signer");
+let getDataSign = require("./helpers/datamgtSigner");
+let permissionSign = require("./helpers/dataPermission");
+
+const { zeroAddress } = require("ethereumjs-util");
 
 describe("Data Management Contract", function () {
 
@@ -10,148 +15,173 @@ describe("Data Management Contract", function () {
     let owner;
     let addr1;
     let addr2;
+    let sponsor;
+    let lab;
+    let reseracher;
     let addrs;
     let index=0;
     let signature;
     let signature2;
     let dataHash = "0x622b1092273fe26f6a2c370a5c34a690337e7f802f2fa5006b40790bd3f7d69b"; 
+    let dataHash2 = "0x622b1092273fe26f6a2c370a5c34a690337e7f802f2fa5006b40790bd3f7d68c"; 
+
     const kycDataHash= "7924fbcf9a7f76ca5412304f2bf47e326b638e9e7c42ecad878ed9c22a8f1428";
+    const zero_address = "0x0000000000000000000000000000000000000000";
     const kyc = "0x" + kycDataHash;
-    let nonce = 0;
+    let nonce = 1;
+    let chainID = 31337;
     let expiration = 2; // 2 days 
+    let nextProductId = 1001;
 
     before(async function () {
-        // Get the ContractFactory and Signers here.
-        [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+        [owner, addr1, addr2, sponsor, lab, reseracher, ...addrs] = await ethers.getSigners();
+
         _identityToken = await ethers.getContractFactory("IdentityToken");
-        identityToken = await  _identityToken.deploy("Rejuve Identities","RI");
+        identityToken = await _identityToken.deploy("Rejuve Identities", "RUI", "1.0.0", sponsor.address);
 
         _dataMgt = await ethers.getContractFactory("DataManagement");
-        dataMgt = await _dataMgt.deploy(identityToken.address);
+        dataMgt = await _dataMgt.deploy("Data management", "1.0.0", sponsor.address, identityToken.address);
     }); 
 
     it("Should revert if trying to pause contract by address other than owner", async function () {
         await expect(dataMgt.connect(addr1).pause())
-        .to.be.revertedWith("Ownable: caller is not the owner");
+        .to.be.reverted;
     });
 
-    it("Should revert if contract is paused", async function () {
+    //-------------------------------------- Data submission -----------------------------------//
+
+    it("Should revert if trying dat asubmission when contract is paused", async function () {
         await dataMgt.pause();
-        signature = await _getSign.getSignForData(addr1.address, dataHash, nonce, dataMgt.address,addr1);
-        await expect(dataMgt.submitData(addr1.address, signature, dataHash, nonce))
-        .to.be.revertedWith("Pausable: paused");
-    });
+        // Get data signature from data owner 
+        let dataSignature = await getDataSign.dataSubmissionSignature(addr1.address, dataHash, nonce, chainID, dataMgt.address, addr1);
+        await expect(dataMgt.connect(sponsor).submitData(addr1.address, dataSignature, dataHash, nonce))
+        .to.be.reverted;
 
-    it("Should revert if trying to unpause contract by address other than owner", async function () {
         await expect(dataMgt.connect(addr1).unpause())
-        .to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    it("Should revert if data owner not registered", async function () {
+        .to.be.reverted;
 
         await dataMgt.unpause();
-        expect(await identityToken.paused()).to.equal(false);
+    });
 
-        signature = await _getSign.getSignForData(addr1.address, dataHash, nonce, dataMgt.address,addr1);
-        await expect(dataMgt.submitData(addr1.address, signature, dataHash, nonce))
+    it("Should revert if someone other than sponser is submitting data", async function () {
+        // Get data signature from data owner 
+        let dataSignature = await getDataSign.dataSubmissionSignature(addr1.address, dataHash, nonce, chainID, dataMgt.address, addr1);
+        await expect(dataMgt.connect(addr1).submitData(addr1.address, dataSignature, dataHash, nonce))
+        .to.be.reverted;
+    });
+
+    it("Should revert if data owner is not registered", async function () {
+        // Get data signature from data owner 
+        let dataSignature = await getDataSign.dataSubmissionSignature(addr1.address, dataHash, nonce, chainID, dataMgt.address, addr1);
+
+        await expect(dataMgt.connect(sponsor).submitData(addr1.address, dataSignature, dataHash, nonce))
         .to.be.revertedWith("REJUVE: Not Registered");
     });
 
-    it("Should revert if use a signature more than once", async function () {
+    it("Should allow submitting data on the behalf of user 1", async function () {
+        // create identity for user 1
+        let tokenUri = "/tokenURIHere";
+        let identitySignature = await getSignature.identityRequestSignature(kyc, addr1.address, tokenUri, nonce, chainID, identityToken.address, addr1); 
+        await identityToken.connect(sponsor).createIdentity(identitySignature, kyc, addr1.address, "/tokenURIHere", nonce);
 
-        // create identityy
-        let identitySignature = await _getSign.getSignForIdentity(addr1.address, kyc, "/tokenURIHere", nonce, identityToken.address, addr1);   
-        await identityToken.createIdentity(identitySignature, kyc, addr1.address, "/tokenURIHere", nonce);
+        // Get data signature from data owner 
+        let dataSignature = await getDataSign.dataSubmissionSignature(addr1.address, dataHash, nonce, chainID, dataMgt.address, addr1);
 
-        // data submission twice with same signature
-        await dataMgt.submitData(addr1.address, signature, dataHash, nonce);
-        await expect(dataMgt.submitData(addr1.address, signature, dataHash, nonce))
-        .to.be.revertedWith("REJUVE: Signature used already");
-      
-    });
+        // Revert if signer is a zero address 
+        await expect(dataMgt.connect(sponsor).submitData(zero_address, dataSignature, dataHash, nonce))
+        .to.be.revertedWith("REJUVE: Zero address");
 
-    it("Should revert if invalid signature - submit data", async function () {
-        // create identity for data owner
-        ++nonce;
-        let identitySignature = await _getSign.getSignForIdentity(addr2.address, kyc, "/tokenURIHere", nonce, identityToken.address, addr2);   
-        await identityToken.createIdentity(identitySignature, kyc, addr2.address, "/tokenURIHere", nonce);
-        // submit data on the behalf of data owner 
-        ++nonce;
-        signature = await _getSign.getSignForData(owner.address, dataHash, nonce, dataMgt.address,addr2);
-        await expect (dataMgt.submitData(addr2.address, signature, dataHash, nonce))
-        .to.be.revertedWith("REJUVE: Invalid Signature");
-    });
+        // data submission 
+        await dataMgt.connect(sponsor).submitData(addr1.address, dataSignature, dataHash, nonce);
 
-//--------------------------------------
-
-    it("Data hash should be submitted against data owner Id", async function () {
-        ++nonce;
-        signature = await _getSign.getSignForData(addr2.address, dataHash, nonce, dataMgt.address,addr2);
-        await dataMgt.submitData(addr2.address, signature, dataHash, nonce);
-       
-        expect(await dataMgt.getDataByTokenId(identityToken.getOwnerIdentity(addr2.address),index++))
+        expect(await dataMgt.getDataByTokenId(identityToken.getOwnerIdentity(addr1.address),index))
         .to.equal(dataHash);
 
         expect (await dataMgt.getDataOwnerId(dataHash))
+       .to.equal(await identityToken.getOwnerIdentity(addr1.address));
+
+        await expect(dataMgt.connect(sponsor).submitData(addr1.address, dataSignature, dataHash, nonce))
+        .to.be.revertedWith("REJUVE: Already used id");
+    });
+
+    it("Should revert if invalid signature is used for submitting data", async function () {
+        ++nonce;
+
+        // create identity for user 2
+        let tokenUri = "/tokenURIHere";
+        let identitySignature = await getSignature.identityRequestSignature(kyc, addr2.address, tokenUri, nonce, chainID, identityToken.address, addr2); 
+        await identityToken.connect(sponsor).createIdentity(identitySignature, kyc, addr2.address, tokenUri, nonce);
+
+        // Get data signature 
+        let dataSignature = await getDataSign.dataSubmissionSignature(addr2.address, dataHash, nonce, chainID, dataMgt.address, sponsor);
+
+        // data submission with invalid signature
+        await expect (dataMgt.connect(sponsor).submitData(addr1.address, dataSignature, dataHash, nonce))
+        .to.be.revertedWith("REJUVE: Invalid user signature");
+    });
+
+    it("Should allow submitting data on the behalf of user 2", async function () {
+        ++nonce;
+        // Get data signature 
+        let dataSignature = await getDataSign.dataSubmissionSignature(addr2.address, dataHash2, nonce, chainID, dataMgt.address, addr2);
+
+        // data submission 
+        await dataMgt.connect(sponsor).submitData(addr2.address, dataSignature, dataHash2, nonce);
+
+        const tokenId = await identityToken.getOwnerIdentity(addr2.address);
+        expect(await dataMgt.getDataByTokenId(tokenId, index))
+        .to.equal(dataHash2);
+
+        expect (await dataMgt.getDataOwnerId(dataHash2))
        .to.equal(await identityToken.getOwnerIdentity(addr2.address));
     });
-    
-    it("should revert if requester is not registered", async function () {
+
+    //-------------------------------------- Requester Permission -----------------------------------//
+
+    it("Should permit lab to use data", async function () {
         ++nonce;
-        expiration = expiration * 24 * 60 * 60;
-        signature = _getSign.getSignForPermission(addr2.address, 3, dataHash, 100, nonce, expiration, dataMgt.address, addr2);
-        await expect (dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration))  
-        .to.be.revertedWith("REJUVE: Not Registered");
-    });
+        // Create identity for lab
+        let tokenUri = "/tokenURIHere";
+        let identitySignature = await getSignature.identityRequestSignature(kyc, lab.address, tokenUri, nonce, chainID, identityToken.address, lab); 
+        await identityToken.connect(sponsor).createIdentity(identitySignature, kyc, lab.address, tokenUri, nonce);
+   
+        //const labIdentityId = await identityToken.getOwnerIdentity(lab.address);
 
-    it("Should revert if permitting lab to use data when contract is paused", async function () {
-        // create identity
-        +nonce
-        let identitySignature = await _getSign.getSignForIdentity(owner.address, kyc, "/tokenURIHere", nonce, identityToken.address, owner);   
-        await identityToken.createIdentity(identitySignature, kyc, owner.address, "/tokenURIHere", nonce);
-        // Get data owner signature 
-        ++nonce;
-        signature = _getSign.getSignForPermission(addr2.address, 3, dataHash, 100, nonce, expiration, dataMgt.address, addr2);
-        // Get data access permission
-        
-        signature2 = _getSign.getSignForPermission(owner.address, 3, dataHash, 100, nonce, expiration, dataMgt.address, addr2);
-        //-----------------********************
-        expect (await dataMgt.getPermissionStatus(dataHash, 100)).to.equal(0);
-
-        await dataMgt.pause();
-
-        await expect(dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration))
-        .to.be.revertedWith("Pausable: paused");
-    });
-
-    it("Should revert if invalid signer", async function () {
-        await dataMgt.unpause();
-
-        await expect(dataMgt.getPermission(addr2.address, signature2, dataHash, 100, nonce, expiration))
-        .to.be.revertedWith("REJUVE: Invalid Signature");
-
-        expect(await dataMgt.getPermissionStatus(dataHash, 100)).to.equal(0);
-    });
-
-    it("should permit lab to use data", async function () {
         // Get the current block timestamp
         let currentBlock = await ethers.provider.getBlock('latest');
         let currentTimestamp = currentBlock.timestamp;
     
         // Define the expected deadline
         let expectedDeadline = currentTimestamp + expiration;
+
+        const invalidSign = await permissionSign.accessPermissionSignature(addr2.address, 3, dataHash2, nextProductId, nonce, expiration, chainID, dataMgt.address, sponsor)
+
+        // Access permission with invalid signature
+        await expect (dataMgt.connect(lab).getPermission(addr2.address, invalidSign, dataHash2, nextProductId, nonce, expiration))
+        .to.be.revertedWith("REJUVE: Invalid user signature");
+
+        const p_signature = await permissionSign.accessPermissionSignature(addr2.address, 3, dataHash2, nextProductId, nonce, expiration, chainID, dataMgt.address, addr2)
         
+        await dataMgt.pause();
+
+        // Access permission with invalid signature
+        await expect (dataMgt.connect(lab).getPermission(addr2.address, p_signature, dataHash2, nextProductId, nonce, expiration))
+        .to.be.reverted;
+
+        await dataMgt.unpause();
+
         // Get permission
-        await dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration);
-    
+        await dataMgt.connect(lab).getPermission(addr2.address, p_signature, dataHash2, nextProductId, nonce, expiration);
+
         // Check permission status
-        expect(await dataMgt.getPermissionStatus(dataHash, 100)).to.equal(1);
+        expect(await dataMgt.getPermissionStatus(dataHash2, nextProductId)).to.equal(1);
     
         // Calculate the permission hash
-        const requestorID = await identityToken.getOwnerIdentity(owner.address);
+        const requestorID = await identityToken.getOwnerIdentity(lab.address);
+
         const permissionHash = ethers.utils.solidityKeccak256(
             ['uint256', 'bytes', 'uint256'],
-            [requestorID, dataHash, 100]
+            [requestorID, dataHash2, nextProductId]
         );
     
         // Retrieve all permissions and verify the permission hash
@@ -159,28 +189,24 @@ describe("Data Management Contract", function () {
         expect(allPermissions[0]).to.equal(permissionHash);
     
         // Verify the permission deadline
-        let deadline = await dataMgt.getPermissionDeadline(dataHash, 100);
+        let deadline = await dataMgt.getPermissionDeadline(dataHash2, nextProductId);
         let buffer = 5; // Buffer of 5 seconds
         expect(deadline).to.be.at.least(expectedDeadline);
         expect(deadline).to.be.at.most(expectedDeadline + buffer);
-    });
-    
-    it("Should revert if signature used twice", async function () {
-        await expect(dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration))
-        .to.be.revertedWith("REJUVE: Signature used already");
-    });
 
-    it("should revert if requester provided incorrect data owner", async function () {
-        ++nonce;
-        signature = _getSign.getSignForPermission(addr1.address, 3, dataHash, 100, nonce, expiration, dataMgt.address, addr1);
-        await expect(dataMgt.getPermission(addr1.address, signature, dataHash, 100, nonce, expiration))
+        await expect(dataMgt.connect(lab).getPermission(addr2.address, p_signature, dataHash2, nextProductId, nonce, expiration))
+        .to.be.revertedWith("REJUVE: Already used id");
+
+        // Not a data owner 
+        const p_signature_2 = await permissionSign.accessPermissionSignature(addr1.address, 3, dataHash2, nextProductId, nonce, expiration, chainID, dataMgt.address, addr1)
+        await expect (dataMgt.connect(lab).getPermission(addr1.address, p_signature_2, dataHash2, nextProductId, nonce, expiration))
         .to.be.revertedWith("REJUVE: Not a Data Owner");
     });
 
-    it("should revert if requester provided invalid signature", async function () {
-        ++nonce;
-        signature = _getSign.getSignForPermission(addr2.address, 3, dataHash, 100, nonce, expiration, dataMgt.address, addr1);
-        await expect(dataMgt.getPermission(addr2.address, signature, dataHash, 100, nonce, expiration))
-        .to.be.revertedWith("REJUVE: Invalid Signature");
+    //------------ Support interface -------
+
+    it("should support AccessControl interface", async function () {
+        const ACCESS_CONTROL_INTERFACE_ID = "0x7965db0b";
+        expect(await dataMgt.supportsInterface(ACCESS_CONTROL_INTERFACE_ID)).to.equal(true);
     });
 });
