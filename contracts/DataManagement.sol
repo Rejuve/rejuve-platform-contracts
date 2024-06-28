@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.21;
+pragma solidity 0.8.21;
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./Interfaces/IIdentityToken.sol";
@@ -12,14 +13,28 @@ import "./Interfaces/IIdentityToken.sol";
  * It allows a caller to request specific data access by taking data owner's signature 
  * as permission.
 */
-contract DataManagement is Context, Ownable, Pausable {
-    using ECDSA for bytes32;
-    IIdentityToken private _identityToken;
+contract DataManagement is Context, AccessControl, EIP712, Pausable {
+    
+    // Role that perform pause/unpause operations
+    bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+
+    // Role that perform data submission 
+    bytes32 public constant SPONSOR_ROLE = keccak256('SPONSOR_ROLE');
+
+    bytes32 public constant DATA_SUBMISSION_TYPE_HASH = keccak256(
+        "DataSubmission(address signer,bytes dhash,uint256 nonce)"
+    );
+
+    bytes32 public constant PERMISSION_TYPE_HASH = keccak256(
+        "Permission(address dataowner,uint256 requesterId,bytes dhash,uint256 productId,uint256 nonce,uint256 expiration)"
+    );
 
     enum PermissionState {
         NotPermitted,
         Permitted
     }
+
+    IIdentityToken private _identityToken;
 
     // Array to store all data hashes
     bytes[] private _dataHashes;
@@ -39,42 +54,45 @@ contract DataManagement is Context, Ownable, Pausable {
     // Mapping from data hash to nextProductUID to permission deadline
     mapping(bytes => mapping(uint256 => uint256)) private dataToProductToExpiry;
 
-    // Mapping from nonce to use status
-    mapping(uint256 => bool) private usedNonces;
+    // Mapping to keep track of used withdrawal messages
+    mapping(bytes32 => bool) private _usedMessage;  
 
     /**
      * @dev Emitted when a new data hash is submitted
     */
-    event DataSubmitted(address dataOwner, uint256 dataOwnerId, bytes dataHash);
+    event DataSubmitted(address indexed dataOwner, uint256 indexed dataOwnerId, bytes dataHash);
 
     /**
      * @dev Emitted when permission is granted to access requested data
      * to be used in a specific product
     */
     event PermissionGranted(
-        uint256 dataOwnerId,
+        uint256 indexed dataOwnerId,
         uint256 requesterId,
         uint256 nextProductUID,
         bytes dataHash,
         bytes32 permissionHash
     );
 
-    modifier isRegistered(address signer) {
-        require(
-            _identityToken.ifRegistered(signer) == 1,
-            "REJUVE: Not Registered"
-        );
-        _;
-    }
-
-    constructor(IIdentityToken identityToken_) {
+    constructor(
+        string memory name,
+        string memory version,
+        address sponsor,
+        IIdentityToken identityToken_
+    )
+        EIP712(name, version)
+    {
+        _checkNonZeroAddr(sponsor);
         _identityToken = identityToken_;
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(SPONSOR_ROLE, sponsor);
+        _grantRole(PAUSER_ROLE, _msgSender());
     }
 
     // ---------------------------- STEP 2 : Data Submission ------------------------
 
     /**
-     * @notice Allow rejuve/sponsor to execute transaction
+     * @notice Allow rejuve/sponsor to execute the transaction
      * @param signer is a data owner address who wants to submit data
      * @param signature - signer's signature (used here as permission for data submission)
      * @param dHash - Actual data hash in bytes
@@ -91,13 +109,11 @@ contract DataManagement is Context, Ownable, Pausable {
     )
         external
         whenNotPaused
-        isRegistered(signer)
+        onlyRole(SPONSOR_ROLE)
     {
-        require(
-            _verifyDataMessage(signature, signer, dHash, nonce),
-            "REJUVE: Invalid Signature"
-        );
-
+        _checkNonZeroAddr(signer);
+        _isRegistered(signer);
+        _isValidSignature(signature, signer, dHash, nonce);
         _submitData(signer, dHash);
     }
 
@@ -126,9 +142,13 @@ contract DataManagement is Context, Ownable, Pausable {
         external 
         whenNotPaused 
     {
+        _checkNonZeroAddr(signer);
+        _isRegistered(signer);
+        _isRegistered(_msgSender());
+        
         uint256 requesterId = _identityToken.getOwnerIdentity(_msgSender());
+
         _preValidations(
-            _msgSender(),
             signer,
             signature,
             dHash,
@@ -137,6 +157,7 @@ contract DataManagement is Context, Ownable, Pausable {
             nonce,
             expiration
         );
+
         _getPermission(
             signer,
             dHash,
@@ -151,14 +172,14 @@ contract DataManagement is Context, Ownable, Pausable {
      * @dev Triggers stopped state.
      *
      */
-    function pause() external onlyOwner {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
     /**
      * @dev Returns to normal state.
      */
-    function unpause() external onlyOwner {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
@@ -209,6 +230,24 @@ contract DataManagement is Context, Ownable, Pausable {
         return ownerToPermissions[_identityToken.getOwnerIdentity(owner)];
     }
 
+    // -------------------- Public ---------------------//
+
+    /**
+     * @dev See {IERC165-supportsInterface}
+     */
+    function supportsInterface(
+        bytes4 interfaceId
+    ) 
+        public 
+        view 
+        override(
+            AccessControl
+        ) 
+        returns (bool) 
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
     //------------------------ PRIVATE FUNCTIONS -----------------------------//
 
     /**
@@ -224,31 +263,6 @@ contract DataManagement is Context, Ownable, Pausable {
         dataToOwner[dHash] = tokenId;
 
         emit DataSubmitted(dataOwner, tokenId, dHash);
-    }
-
-    /**
-     * @dev Private function to verify user signature
-     * @dev return true if valid signature
-     */
-    function _verifyDataMessage(
-        bytes memory signature,
-        address signer,
-        bytes memory dHash,
-        uint256 nonce
-    ) private returns (bool flag) {
-        require(!usedNonces[nonce], "REJUVE: Signature used already");
-        usedNonces[nonce] = true;
-
-        bytes32 messagehash = keccak256(
-            abi.encodePacked(signer, dHash, nonce, address(this))
-        ); // recreate message
-        address signerAddress = messagehash.toEthSignedMessageHash().recover(
-            signature
-        ); // verify signer using ECDSA
-
-        if (signer == signerAddress) {
-            flag = true;
-        }
     }
 
     /**
@@ -288,77 +302,104 @@ contract DataManagement is Context, Ownable, Pausable {
 
     /**
      * @dev Pre-validations before data access permission
-     * - check if caller is registered identity
      * - check if caller is provided correct data owner
      * - check if valid signature is provided
      */
     function _preValidations(
-        address caller,
         address signer,
         bytes memory signature,
-        bytes memory dHash,
+        bytes memory dhash,
         uint256 requesterId,
         uint256 nextProductUID,
         uint256 nonce,
         uint256 expiration
     ) 
         private 
-        isRegistered(caller)
     {
-        uint256 id = dataToOwner[dHash];
+        uint256 id = dataToOwner[dhash];
         require(
             id == _identityToken.getOwnerIdentity(signer),
             "REJUVE: Not a Data Owner"
         );
-        require(
-            _verifyPermissionMessage(
-                signature,
-                signer,
-                requesterId,
-                dHash,
-                nextProductUID,
-                nonce,
-                expiration
-            ),
-            "REJUVE: Invalid Signature"
+
+        _isValidPermissionSign(
+            signature,
+            signer,
+            requesterId,
+            dhash,
+            nextProductUID,
+            nonce,
+            expiration
         );
     }
 
-    /**
-     * @dev Private function to verify data owner's signature for permission
-     * @dev return true if valid signature
-     */
-    function _verifyPermissionMessage(
+    function _isValidPermissionSign(
         bytes memory signature,
         address signer,
         uint256 requesterId,
-        bytes memory dHash,
+        bytes memory dhash,
         uint256 nextProductUID,
         uint256 nonce,
         uint256 expiration
-    ) private returns (bool flag) {
-        require(!usedNonces[nonce], "REJUVE: Signature used already");
-        usedNonces[nonce] = true;
+    ) 
+        private
+    {
+        bytes32 digest =  keccak256(abi.encode(
+            PERMISSION_TYPE_HASH,
+            signer,
+            requesterId,
+            keccak256(dhash),
+            nextProductUID,
+            nonce,
+            expiration
+        ));
+        
+        require(
+            !_usedMessage[digest], 
+            "REJUVE: Already used id"
+        );
 
-        bytes32 messagehash = keccak256(
-            abi.encodePacked(
-                signer,
-                requesterId,
-                dHash,
-                nextProductUID,
-                nonce,
-                expiration,
-                address(this)
-            )
-        ); // recreate message
-        address signerAddress = messagehash.toEthSignedMessageHash().recover(
-            signature
-        ); // verify signer using ECDSA
+        address recoveredSigner = _getSigner(_hashTypedDataV4(digest), signature); 
 
-        if (signer == signerAddress) {
-            flag = true;
-        }
+        require(
+            recoveredSigner == signer,
+            "REJUVE: Invalid user signature"
+        );   
+
+        _usedMessage[digest] = true;
     }
+
+    function _isValidSignature(
+        bytes memory signature,
+        address signer, 
+        bytes memory dhash,
+        uint256 nonce
+    ) 
+        private
+    {
+        bytes32 digest =  keccak256(abi.encode(
+            DATA_SUBMISSION_TYPE_HASH,
+            signer,
+            keccak256(dhash),
+            nonce
+        ));
+        
+        require(
+            !_usedMessage[digest], 
+            "REJUVE: Already used id"
+        );
+
+        address recoveredSigner = _getSigner(_hashTypedDataV4(digest), signature); 
+
+        require(
+            recoveredSigner == signer,
+            "REJUVE: Invalid user signature"
+        );   
+
+        _usedMessage[digest] = true;
+    }
+
+    // -------------------- Helpers ---------------------//
 
     /**
      * @dev calculate permission expiration
@@ -366,6 +407,13 @@ contract DataManagement is Context, Ownable, Pausable {
     function _calculateDeadline(uint256 expiration) private view returns (uint256) {
         uint256 deadline = block.timestamp + expiration;
         return deadline;
+    }
+
+    function _isRegistered(address user) private view {
+        require(
+            _identityToken.ifRegistered(user) == 1,
+            "REJUVE: Not Registered"
+        );
     }
 
     function _generatePermissionHash(
@@ -376,5 +424,16 @@ contract DataManagement is Context, Ownable, Pausable {
         return
             keccak256(abi.encodePacked(requesterId, dHash, nextProductUID)
         );
+    }  
+
+    function _getSigner(
+        bytes32 digest, 
+        bytes memory signature
+    ) private pure returns (address){      
+        return ECDSA.recover(digest, signature);
+    }
+
+    function _checkNonZeroAddr(address addr) private pure {
+        require(addr != address(0), "REJUVE: Zero address");
     }
 }
