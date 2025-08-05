@@ -169,6 +169,28 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         return super.supportsInterface(interfaceId);
     }
 
+    //----------------------------- TRANSFER RESTRICTIONS -----------------------------//
+
+    function transferFrom(address from, address to, uint256 tokenId) public pure override(ERC721, IERC721) {
+        revert("REJUVE: Transfer is disabled");
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public pure override(ERC721, IERC721) {
+        revert("REJUVE: Safe transfer is disabled");
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public pure override(ERC721, IERC721) {
+        revert("REJUVE: Safe transfer with data is disabled");
+    }
+
+    function approve(address to, uint256 tokenId) public pure override(ERC721, IERC721) {
+        revert("REJUVE: Approvals are disabled");
+    }
+
+    function setApprovalForAll(address operator, bool approved) public pure override(ERC721, IERC721) {
+        revert("REJUVE: SetApprovalForAll is disabled");
+    }
+
     //----------------------------- PRIVATE FUNCTIONS -----------------------------//
 
     /**
