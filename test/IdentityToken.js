@@ -190,6 +190,14 @@ describe("Identity Token Contract", function () {
         await identityToken.unpause()
     });
 
+    it("Should revert if will called transfer token", async function () {
+        await expect(
+          identityToken
+            .connect(addr1)
+            .transferFrom(await addr1.getAddress(), await addr2.getAddress(), 1)
+        ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
+    });
+
     it("Should burn given token Id", async function () {
         await identityToken.connect(addr1).burnIdentity(identityToken.getOwnerIdentity(userAddress1));        
         expect (await identityToken.balanceOf(userAddress1)).to.equal(0);

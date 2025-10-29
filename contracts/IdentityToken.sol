@@ -169,6 +169,18 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         return super.supportsInterface(interfaceId);
     }
 
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 firstTokenId,
+        uint256 batchSize
+    ) internal virtual override {
+        require(
+            from == address(0) || to == address(0),
+            "REJUVE: SoulBound Tokens are non-transferable"
+        );
+    }
+
     //----------------------------- PRIVATE FUNCTIONS -----------------------------//
 
     /**
