@@ -180,7 +180,7 @@ describe("Identity Token Contract", function () {
 
     it("Should revert if burn is called by user other than owner", async function () {
         await expect(identityToken.burnIdentity(identityToken.getOwnerIdentity(userAddress1)))
-        .to.be.revertedWith("REJUVE: Only Identity Owner");
+        .to.be.revertedWith("REJUVE: Only Owner");
     });
 
     it("Should revert if burn is called when contract is paused", async function () {
@@ -190,12 +190,22 @@ describe("Identity Token Contract", function () {
         await identityToken.unpause()
     });
 
-    it("Should revert if will called transfer token", async function () {
+    it("Should revert if user is trying to transfer their identity token", async function () {
         await expect(
           identityToken
             .connect(addr1)
             .transferFrom(await addr1.getAddress(), await addr2.getAddress(), 1)
         ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
+    });
+
+    it("Should revert if transfer token is called when contract is paused", async function () {
+        await identityToken.pause()
+        await expect(
+          identityToken
+            .connect(addr1)
+            .transferFrom(await addr1.getAddress(), await addr2.getAddress(), 1)
+        ).to.be.reverted;
+        await identityToken.unpause()
     });
 
     it("Should burn given token Id", async function () {

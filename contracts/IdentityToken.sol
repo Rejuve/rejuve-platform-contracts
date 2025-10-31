@@ -6,11 +6,13 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /** 
  * @title Identity Management for data contributors
+ * @notice SoulBound: transfers disabled; only mint (from 0) and burn (to 0) allowed.
  * @dev Contract module which provides an identity creation mechanism
- * that allows rejuve to create identities on the behalf of user,
+ * that allows rejuve to create identities on behalf of the user,
  * taking their signature as permission to create identity.
  * Also, users can burn their identities any time
 */
@@ -39,18 +41,25 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
     // Mapping from user to registration status
     mapping(address => UserStatus) private registrations;
 
-    // Mapping to keep track of used withdrawal messages
+    /**
+     * @dev Replay protection mapping.
+     * Each signed message digest is stored to prevent reuse.
+     * Note: The digest is hashed through _hashTypedDataV4(), which binds it
+     * to the EIP-712 domain (including chainId, contract name, and version),
+     * ensuring signatures cannot be replayed across different chains or
+     * contract versions.
+     */
     mapping(bytes32 => bool) private _usedMessage;  
 
     /**
      * @dev Emitted when a new Identity is created
      */
-    event IdentityCreated(address indexed caller, uint256 tokenId, string tokenURI);
+    event IdentityCreated(address indexed identityOwner, address indexed sponsor, uint256 tokenId, string tokenURI);
 
     /**
      * @dev Emitted when identity owner burn his token
      */
-    event IdentityDestroyed(address indexed owner, uint256 ownerId);
+    event IdentityDestroyed(address indexed identityOwner, uint256 tokenId);
 
     constructor(
         string memory name, 
@@ -71,7 +80,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
     // -------------------- STEP 1 : Create Identity token ---------------------//
 
     /**
-     * @notice Decentralized identitiies for data contributors. 
+     * @notice Decentralized identities for data contributors. 
      * @dev Only one identity token per user
      * @dev Rejuve/sponsor can create identity token for user. User signature is mandatory
      * @param signature user signature
@@ -111,10 +120,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         external 
         whenNotPaused
     {
-        require(
-            tokenId == ownerToIdentity[_msgSender()],
-            "REJUVE: Only Identity Owner"
-        );
+        require(ownerOf(tokenId) == _msgSender(), "REJUVE: Only Owner");
         _burnIdentity(tokenId);
     }
 
@@ -146,8 +152,8 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
     /**
      * @return caller registration status.
      */
-    function ifRegistered(address userAccount) external view returns (uint8) {
-        return uint8(registrations[userAccount]);
+    function isRegistered(address user) external view returns (bool) {
+        return registrations[user] == UserStatus.Registered;
     }
 
     // -------------------- Public ---------------------//
@@ -169,12 +175,34 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         return super.supportsInterface(interfaceId);
     }
 
+    function approve(address, uint256) public pure override { 
+        revert("REJUVE: Non-transferable"); 
+    }
+
+    function setApprovalForAll(address, bool) public pure override { 
+        revert("REJUVE: Non-transferable"); 
+    }
+
+    function transferFrom(address, address, uint256) public pure override { 
+        revert("REJUVE: Non-transferable"); 
+    }
+
+    function safeTransferFrom(address, address, uint256) public pure override { 
+        revert("REJUVE: Non-transferable"); 
+    }
+    function safeTransferFrom(address, address, uint256, bytes memory) public pure override { 
+        revert("REJUVE: Non-transferable"); 
+    }
+
+    // -------------------- Internal ---------------------//
+
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 firstTokenId,
+        uint256 tokenId,
         uint256 batchSize
-    ) internal virtual override {
+    ) internal override whenNotPaused {
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
         require(
             from == address(0) || to == address(0),
             "REJUVE: SoulBound Tokens are non-transferable"
@@ -198,7 +226,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         _tokenIdCounter.increment();
         ownerToIdentity[userAccount] = tokenId;
         registrations[userAccount] = UserStatus.Registered; 
-        emit IdentityCreated(userAccount, tokenId, tokenURI);
+        emit IdentityCreated(userAccount, _msgSender(), tokenId, tokenURI);
         _safeMint(userAccount, tokenId);
         _setTokenURI(tokenId, tokenURI);
         
@@ -240,14 +268,14 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         
         require(
             !_usedMessage[digest], 
-            "REJUVE: Already used id"
+            "REJUVE: Already Used ID"
         );
 
         address recoveredSigner = _getSigner(_hashTypedDataV4(digest), signature); 
 
         require(
             recoveredSigner == signer,
-            "REJUVE: Invalid user signature"
+            "REJUVE: Invalid User Signature"
         );   
 
         _usedMessage[digest] = true;
@@ -263,7 +291,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
     // -------------------- Helpers ---------------------//
 
     function _checkNonZeroAddr(address addr) private pure {
-        require(addr != address(0), "REJUVE: Zero address");
+        require(addr != address(0), "REJUVE: Zero Address");
     }
     
     function _checkInputs(   
@@ -272,9 +300,9 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         string memory tokenURI,
         uint256 nonce
     ) private pure {
-        require(signature.length != 0, "REJUVE: Empty signature");
-        require(kyc != bytes32(0), "REJUVE: Empty KYC data");
-        require(bytes(tokenURI).length != 0, "REJUVE: Empty token URI");
-        require(nonce != 0, "REJUVE: Zero nonce");
+        require(signature.length != 0, "REJUVE: Empty Signature");
+        require(kyc != bytes32(0), "REJUVE: Empty KYC Data");
+        require(bytes(tokenURI).length != 0, "REJUVE: Empty Token URI");
+        require(nonce != 0, "REJUVE: Zero Nonce");
     }
 }

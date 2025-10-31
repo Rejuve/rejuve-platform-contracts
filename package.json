@@ -24,7 +24,7 @@
     "dotenv": "^16.4.5",
     "ethereum-waffle": "^3.4.4",
     "ethers": "^5.7.2",
-    "hardhat": "^2.15.0",
+    "hardhat": "^2.26.3",
     "prettier": "^2.8.0",
     "prettier-plugin-solidity": "^1.0.0"
   },
