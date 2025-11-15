@@ -12,14 +12,28 @@ const _GOERLI_PRIVATE_KEY = process.env.GOERLI_PRIVATE_KEY;
 
 module.exports = {
   solidity: {
-    version: "0.8.21",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
+  compilers: [
+    {
+      version: "0.8.30",
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 200,
+        },
       },
     },
-  },
+    {
+      version: "0.8.21",
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 200,
+        },
+      },
+    },
+  ],
+},
+
   
   /**
    * @dev uncomment code below to deploy contracts to a remote network
