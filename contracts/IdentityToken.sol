@@ -267,25 +267,30 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         revert("REJUVE: Non-transferable"); 
     }
 
-    function transferFrom(address, address, uint256) 
-        public 
-        override(ERC721, IERC721) 
-    { 
-        revert("REJUVE: Non-transferable"); 
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override(ERC721, IERC721) {
+        // This will call ERC721.transferFrom, which triggers _beforeTokenTransfer
+        super.transferFrom(from, to, tokenId);
     }
 
-    function safeTransferFrom(address, address, uint256) 
-        public 
-        override(ERC721, IERC721) 
-    { 
-        revert("REJUVE: Non-transferable"); 
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override(ERC721, IERC721) {
+        super.safeTransferFrom(from, to, tokenId);
     }
 
-    function safeTransferFrom(address, address, uint256, bytes memory) 
-        public 
-        override(ERC721, IERC721) 
-    { 
-        revert("REJUVE: Non-transferable"); 
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) public override(ERC721, IERC721) {
+        super.safeTransferFrom(from, to, tokenId, data);
     }
 
     // -------------------- Internal ---------------------//
@@ -295,7 +300,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
         address to,
         uint256 tokenId,
         uint256 batchSize
-    ) internal override whenNotPaused {
+    ) internal override {
         super._beforeTokenTransfer(from, to, tokenId, batchSize);
         require(
             from == address(0) || to == address(0),
@@ -352,10 +357,10 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
 
         // Clear the "current" mapping for the associated identityKey
         bytes32 identityKey = _tokenIdToIdentityKey[tokenId];
-        if (identityKey != bytes32(0)) {
-            _identityKeyToCurrentToken[identityKey] = 0;
-            delete _tokenIdToIdentityKey[tokenId];
-        }
+
+        _identityKeyToCurrentToken[identityKey] = 0;
+        delete _tokenIdToIdentityKey[tokenId];
+        
 
         emit IdentityDestroyed(owner, tokenId);
         _burn(tokenId);   

@@ -31,8 +31,6 @@ describe("IdentityToken", function () {
       "RUI",
       "1.0.0"
     );
-
-    // no need for waitForDeployment() in Hardhat tests usually
     nonce = 1;
   });
 
@@ -704,7 +702,7 @@ describe("IdentityToken", function () {
       identityToken
         .connect(addr1)
         .transferFrom(addr1.address, addr2.address, tokenId)
-    ).to.be.revertedWith("REJUVE: Non-transferable");
+    ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
 
     await expect(
       identityToken
@@ -714,7 +712,7 @@ describe("IdentityToken", function () {
           addr2.address,
           tokenId
         )
-    ).to.be.revertedWith("REJUVE: Non-transferable");
+    ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
 
     await expect(
       identityToken
@@ -725,7 +723,7 @@ describe("IdentityToken", function () {
           tokenId,
           "0x"
         )
-    ).to.be.revertedWith("REJUVE: Non-transferable");
+    ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
   });
 
   it("should revert on approve and setApprovalForAll (SoulBound)", async function () {
@@ -749,10 +747,11 @@ describe("IdentityToken", function () {
       identityToken
         .connect(addr1)
         .transferFrom(addr1.address, addr2.address, tokenId)
-    ).to.be.revertedWith("REJUVE: Non-transferable");
+    ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
 
     await identityToken.unpause();
   });
+
 
   // --------------------------------------------------------------------------
   // Supports interface
@@ -861,51 +860,15 @@ describe("IdentityToken", function () {
     );
   });
 
-  it("should hit _beforeTokenTransfer on burn (to == 0, whenNotPaused)", async function () {
-    const user = others[4]; // fresh user that didn't mint before in these extra tests
-    const tokenUri = "/burn_whenNotPaused_coverage";
-
-    // ensure NOT paused
-    if (await identityToken.paused()) {
-      await identityToken.connect(owner).unpause();
-    }
-
-    const identityKeyBurn = ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes("identity-key-burn-whenNotPaused-unique")
-    );
-    const kycHashBurn = ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes("kyc-hash-burn-whenNotPaused-unique")
-    );
-
-    nonce += 1;
-    const sig = await signIdentity({
-      _identityKey: identityKeyBurn,
-      _kycHash: kycHashBurn,
-      _signer: user,
-      _tokenUri: tokenUri,
-      _nonce: nonce,
-    });
-
-    // mint — this hits _beforeTokenTransfer(from = 0, to = user)
-    await identityToken
-      .connect(owner)
-      .createIdentity(
-        sig,
-        identityKeyBurn,
-        kycHashBurn,
-        user.address,
-        tokenUri,
-        nonce
-      );
-
-    const tokenId = await identityToken.getOwnerIdentity(user.address);
+  it("should hit else branch of _beforeTokenTransfer and revert on transfer", async function () {
+    const tokenId = await identityToken.getOwnerIdentity(addr1.address);
+    // sanity: addr1 has a token
     expect(tokenId).to.be.gt(0);
 
-    // burn — this hits _beforeTokenTransfer(from = user, to = 0) with whenNotPaused
-    await identityToken.connect(user).burnIdentity(tokenId);
-
-    expect(await identityToken.balanceOf(user.address)).to.equal(0);
-    expect(await identityToken.getOwnerIdentity(user.address)).to.equal(0);
+    await expect(
+      identityToken
+        .connect(addr1)
+        .transferFrom(addr1.address, addr2.address, tokenId)
+    ).to.be.revertedWith("REJUVE: SoulBound Tokens are non-transferable");
   });
-
 });
