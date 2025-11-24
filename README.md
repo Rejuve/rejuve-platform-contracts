@@ -269,4 +269,17 @@ scripts/deployProductShards.js
 ```
 
 ### Contact
-For questions or support, please contact us at info@rejuve.ai.
+For questions or support, please contact us at info@rejuve.ai
+
+
+### Developer notes
+To compile the contract on Remix, you need to replace the exisitng imports with following direct GitHub links for the exact OpenZeppelin versions.
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/utils/Context.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/access/AccessControl.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/security/Pausable.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/utils/Counters.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/utils/cryptography/EIP712.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/utils/cryptography/ECDSA.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.1/contracts/token/ERC721/IERC721.sol";
