@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /** 
  * @title Identity Management for data contributors
@@ -255,6 +256,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
 
     function approve(address, uint256) 
         public 
+        pure
         override(ERC721, IERC721) 
     { 
         revert("REJUVE: Non-transferable"); 
@@ -262,6 +264,7 @@ contract IdentityToken is Context, ERC721URIStorage, AccessControl, EIP712, Paus
 
     function setApprovalForAll(address, bool) 
         public 
+        pure
         override(ERC721, IERC721) 
     { 
         revert("REJUVE: Non-transferable"); 
